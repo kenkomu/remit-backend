@@ -56,3 +56,7 @@ export interface GetPaymentRequestResponse {
   paymentRequestId: string;
   status: string;
 }
+
+export interface ErrorResponse {
+  error: string;
+}
