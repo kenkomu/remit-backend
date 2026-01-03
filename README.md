@@ -1,4 +1,4 @@
-# Remit Backend API - Step 2 MVP
+# Remit Backend API 
 
 Minimal backend API skeleton using Node.js + Fastify with mocked responses.
 
