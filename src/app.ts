@@ -1,36 +1,42 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+
+import authPlugin from './plugins/auth';
 import { authRoutes } from './routes/auth.js';
 import { escrowRoutes } from './routes/escrows.js';
 import { paymentRoutes } from './routes/payments.js';
+import { recipientRoutes } from './routes/recipients.js';
 import { webhookRoutes } from './routes/webhooks.js';
-import { testSupabaseConnection } from './services/supabase.js';
+import { onrampRoutes } from './routes/onramp.js';
+
 import { initPrivy } from './services/privy.js';
+import { scheduleDailySpendReset } from './jobs/resetDailySpend';
 
 export async function buildApp() {
-  const fastify = Fastify({
-    logger: true
-  });
+  const fastify = Fastify({ logger: true });
 
-  // Register CORS
-  await fastify.register(cors, {
-    origin: true
-  });
+  await fastify.register(cors, { origin: true });
 
-  // Initialize services
-  testSupabaseConnection();
   initPrivy();
 
-  // Health check
-  fastify.get('/health', async () => {
-    return { status: 'ok' };
-  });
+  // 🔐 Auth plugin
+  await fastify.register(authPlugin);
 
-  // Register routes
+  // Health
+  fastify.get('/health', async () => ({ status: 'ok' }));
+
+  // Routes
   await fastify.register(authRoutes, { prefix: '/auth' });
   await fastify.register(escrowRoutes, { prefix: '/escrows' });
   await fastify.register(paymentRoutes, { prefix: '/payment-requests' });
+  await fastify.register(recipientRoutes, { prefix: '/recipients' });
   await fastify.register(webhookRoutes, { prefix: '/webhooks' });
+  await fastify.register(onrampRoutes, { prefix: '/onramp' });
+
+  // 🕛 Scheduled job
+  if (process.env.NODE_ENV === 'production') {
+    scheduleDailySpendReset();
+  }
 
   return fastify;
 }

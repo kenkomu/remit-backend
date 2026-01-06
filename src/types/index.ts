@@ -20,8 +20,9 @@ export interface VerifyOTPResponse {
 export interface CreateEscrowRequest {
   recipientPhone: string;
   totalAmountUsd: number;
-  categories: string[];
+  categories: { name: string; amountUsd: number }[];  // ✅ correct
 }
+
 
 export interface CreateEscrowResponse {
   escrowId: string;
@@ -45,6 +46,8 @@ export interface CreatePaymentRequestRequest {
   escrowId: string;
   category: string;
   amountKes: number;
+  merchantName: string;
+  merchantAccount: string;
 }
 
 export interface CreatePaymentRequestResponse {
