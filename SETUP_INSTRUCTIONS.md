@@ -135,7 +135,7 @@ GRANT ALL PRIVILEGES ON DATABASE remit_production TO remit_user;
 # Navigate to db folder
 cd db/
 
-# Run schema (use the password you set above)
+# Run schema (use the password you set above)q
 psql -U postgres -h 127.0.0.1 -d remit_production -f 01_schema.sql
 
 

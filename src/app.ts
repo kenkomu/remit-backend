@@ -4,10 +4,13 @@ import cors from '@fastify/cors';
 import authPlugin from './plugins/auth';
 import { authRoutes } from './routes/auth.js';
 import { escrowRoutes } from './routes/escrows.js';
-import { paymentRoutes } from './routes/payments.js';
+import { paymentRequestRoutes } from './routes/paymentRequests';
+// import { paymentRoutes } from './routes/payments.js';
 import { recipientRoutes } from './routes/recipients.js';
 import { webhookRoutes } from './routes/webhooks.js';
 import { onrampRoutes } from './routes/onramp.js';
+import { pretiumWebhookRoutes } from './routes/pretiumWebhook';
+import { offrampRoutes } from './routes/offramp.js';
 
 import { initPrivy } from './services/privy.js';
 import { scheduleDailySpendReset } from './jobs/resetDailySpend';
@@ -28,10 +31,14 @@ export async function buildApp() {
   // Routes
   await fastify.register(authRoutes, { prefix: '/auth' });
   await fastify.register(escrowRoutes, { prefix: '/escrows' });
-  await fastify.register(paymentRoutes, { prefix: '/payment-requests' });
+  await fastify.register(paymentRequestRoutes);
+  // await fastify.register(paymentRoutes, { prefix: '/payment-requests' });
   await fastify.register(recipientRoutes, { prefix: '/recipients' });
   await fastify.register(webhookRoutes, { prefix: '/webhooks' });
   await fastify.register(onrampRoutes, { prefix: '/onramp' });
+  await fastify.register(pretiumWebhookRoutes, { prefix: '/webhooks/pretium' });
+  await fastify.register(offrampRoutes, { prefix: '/offramp' });
+
 
   // 🕛 Scheduled job
   if (process.env.NODE_ENV === 'production') {

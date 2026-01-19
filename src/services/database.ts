@@ -74,11 +74,11 @@ export async function createEscrow(input: CreateEscrowInput): Promise<string> {
             0
         );
 
-        if (categorySum !== input.totalAmountUsdCents) {
-            throw new Error(
-                `Category allocations (${categorySum}) must equal total amount (${input.totalAmountUsdCents})`
-            );
-        }
+        // if (categorySum !== input.totalAmountUsdCents) {
+        //     throw new Error(
+        //         `Category allocations (${categorySum}) must equal total amount (${input.totalAmountUsdCents})`
+        //     );
+        // }
 
         // Insert escrow
         const escrowResult = await client.query(

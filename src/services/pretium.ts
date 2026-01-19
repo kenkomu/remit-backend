@@ -3,25 +3,19 @@ const PRETIUM_API_KEY = process.env.PRETIUM_API_KEY!;
 const SETTLEMENT_WALLET = process.env.BACKEND_SETTLEMENT_WALLET!;
 const WEBHOOK_URL = `${process.env.WEBHOOK_BASE_URL}/webhooks/pretium`;
 
-// Define a common API response type
 interface PretiumResponse<T> {
   code: number;
   message: string;
   data: T;
 }
 
-// Exchange rate response type
 interface ExchangeRateData {
-  quoted_rate: string | number;
+  quoted_rate: number | string;
 }
 
-// Onramp response type
 interface OnRampData {
-  transaction_id: string;
+  transaction_code: string;
   status: string;
-  amount: number;
-  shortcode: string;
-  [key: string]: any; // allow extra fields
 }
 
 export async function getExchangeRate(): Promise<number> {
@@ -34,14 +28,31 @@ export async function getExchangeRate(): Promise<number> {
     body: JSON.stringify({ currency_code: 'KES' }),
   });
 
-  // ✅ Cast the result of res.json()
-  const json = (await res.json()) as PretiumResponse<ExchangeRateData>;
+  // ✅ Cast the JSON result so it's not 'unknown'
+  const json = (await res.json()) as {
+    code: number;
+    message?: string;
+    data?: {
+      quoted_rate?: number | string;
+      selling_rate?: number | string;
+      buying_rate?: number | string;
+    };
+  };
 
-  if (!res.ok || json.code !== 200) {
-    throw new Error(json.message || 'Exchange rate failed');
+  if (!res.ok || json.code !== 200 || !json.data) {
+    throw new Error(`Exchange rate failed: ${JSON.stringify(json)}`);
   }
 
-  return Number(json.data.quoted_rate);
+  const rate =
+    Number(json.data.quoted_rate) ||
+    Number(json.data.selling_rate) ||
+    Number(json.data.buying_rate);
+
+  if (!Number.isFinite(rate) || rate <= 0) {
+    throw new Error(`Invalid exchange rate data: ${JSON.stringify(json.data)}`);
+  }
+
+  return rate;
 }
 
 export async function initiateKesOnRamp(params: {
@@ -55,9 +66,9 @@ export async function initiateKesOnRamp(params: {
       'x-api-key': PRETIUM_API_KEY,
     },
     body: JSON.stringify({
-      shortcode: params.phone,        // 👈 LOCAL FORMAT ONLY
+      shortcode: params.phone,
       amount: params.amountKes,
-      fee: 10,                         // 👈 REQUIRED
+      fee: 10,
       mobile_network: 'Safaricom',
       chain: 'BASE',
       asset: 'USDC',
@@ -66,17 +77,11 @@ export async function initiateKesOnRamp(params: {
     }),
   });
 
-  // ✅ Cast the result of res.json()
+  // ✅ Cast the JSON result
   const json = (await res.json()) as PretiumResponse<OnRampData>;
 
-  if (!res.ok) {
-    throw new Error(
-      `Pretium error ${res.status}: ${JSON.stringify(json)}`
-    );
-  }
-
-  if (json.code !== 200) {
-    throw new Error(json.message);
+  if (!res.ok || json.code !== 200) {
+    throw new Error(json.message || 'Pretium onramp failed');
   }
 
   return json.data;

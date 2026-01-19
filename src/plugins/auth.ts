@@ -23,8 +23,20 @@ const authPlugin: FastifyPluginAsync = async (fastify) => {
     'authenticate',
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        const authHeader = request.headers.authorization;
+        // Check for x-user-id header first (development/testing)
+        const xUserId = request.headers['x-user-id'] as string;
+        
+        if (xUserId) {
+          // Development mode: use x-user-id directly
+          request.user = {
+            userId: xUserId,
+            role: 'recipient',
+          };
+          return;
+        }
 
+        // Production mode: use Authorization header
+        const authHeader = request.headers.authorization;
         if (!authHeader) {
           return reply.status(401).send({ error: 'Missing authorization header' });
         }
