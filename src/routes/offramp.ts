@@ -25,8 +25,8 @@ export async function offrampRoutes(fastify: FastifyInstance) {
       // 1️⃣ Lock payment request
       const prRes = await client.query(
         `
-        SELECT *
-        FROM payment_requests
+        SELECT pr.*, pr.amount_kes_cents, pr.onchain_transaction_hash
+        FROM payment_requests pr
         WHERE payment_request_id = $1
         FOR UPDATE
         `,
@@ -40,15 +40,27 @@ export async function offrampRoutes(fastify: FastifyInstance) {
       const paymentRequest = prRes.rows[0];
 
       if (paymentRequest.status !== 'pending_approval') {
-        throw new Error('Payment request not payable');
+        throw new Error(`Payment request not payable. Current status: ${paymentRequest.status}`);
+      }
+
+      // Get the actual KES amount from payment request
+      const actualAmountKes = Number(paymentRequest.amount_kes_cents) / 100;
+
+      // Verify amount matches
+      if (Math.abs(actualAmountKes - amountKes) > 0.01) {
+        throw new Error(`Amount mismatch. Expected ${actualAmountKes} KES, got ${amountKes} KES`);
+      }
+
+      // Use the transaction hash from payment request if not provided
+      const txHash = transactionHash || paymentRequest.onchain_transaction_hash;
+      
+      if (!txHash) {
+        throw new Error('No transaction hash found');
       }
 
       // 2️⃣ Call Pretium
-      const pretiumRes = await disburseKes({
-        phone: phoneNumber,
-        amountKes,
-        transactionHash,
-      });
+     const pretiumRes = await disburseKes();
+
       // 3️⃣ Store offramp transaction
       await client.query(
         `
@@ -65,7 +77,7 @@ export async function offrampRoutes(fastify: FastifyInstance) {
           paymentRequestId,
           pretiumRes.transaction_code,
           phoneNumber,
-          amountKes * 100,
+          paymentRequest.amount_kes_cents,
         ]
       );
 
@@ -84,6 +96,7 @@ export async function offrampRoutes(fastify: FastifyInstance) {
       return {
         message: 'Disbursement initiated',
         transactionCode: pretiumRes.transaction_code,
+        amountKes: actualAmountKes,
       };
 
     } catch (err: any) {

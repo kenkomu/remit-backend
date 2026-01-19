@@ -11,6 +11,7 @@ import { webhookRoutes } from './routes/webhooks.js';
 import { onrampRoutes } from './routes/onramp.js';
 import { pretiumWebhookRoutes } from './routes/pretiumWebhook';
 import { offrampRoutes } from './routes/offramp.js';
+import { pretiumTransactionsRoutes } from './routes/pretiumTransactions.js';
 
 import { initPrivy } from './services/privy.js';
 import { scheduleDailySpendReset } from './jobs/resetDailySpend';
@@ -38,6 +39,7 @@ export async function buildApp() {
   await fastify.register(onrampRoutes, { prefix: '/onramp' });
   await fastify.register(pretiumWebhookRoutes, { prefix: '/webhooks/pretium' });
   await fastify.register(offrampRoutes, { prefix: '/offramp' });
+  await fastify.register(pretiumTransactionsRoutes);
 
 
   // 🕛 Scheduled job
