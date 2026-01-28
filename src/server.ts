@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { buildApp } from './app.js';
 // 🔥 START WORKER (ONE LINE)
-import './workers/usdcSpender.ts';
+import './workers/usdcSpender';
 
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = '0.0.0.0';
