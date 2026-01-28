@@ -5,10 +5,40 @@ export const redis = new Redis({
   host: process.env.REDIS_HOST || '127.0.0.1',
   port: Number(process.env.REDIS_PORT) || 6379,
   password: process.env.REDIS_PASSWORD || undefined,
-  connectTimeout: 10000,
+  
+  // Add these parameters from forum solutions
+  connectTimeout: 10000, // 10 seconds timeout
+  keepAlive: 1000, // Keep connection alive
+  retryStrategy: (times) => {
+    // Exponential backoff with max delay of 3 seconds
+    const delay = Math.min(times * 100, 3000);
+    return delay;
+  },
+  
+  // Add error handling
+  maxRetriesPerRequest: 3,
+  enableReadyCheck: false,
+  
+  // If you're having DNS issues, try using IP instead of hostname
+  // family: 4, // Force IPv4
 });
 
+// Add event listeners for debugging
+redis.on('error', (error) => {
+  console.error('Redis error:', error);
+});
 
+redis.on('connect', () => {
+  console.log('Redis connected successfully');
+});
+
+redis.on('ready', () => {
+  console.log('Redis is ready');
+});
+
+redis.on('close', () => {
+  console.log('Redis connection closed');
+});
 
 export async function withIdempotency(
   req: FastifyRequest,
@@ -31,4 +61,3 @@ export async function withIdempotency(
   // Proceed with original handler
   return handler();
 }
-//end of the file
