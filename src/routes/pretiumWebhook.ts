@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
-import { pool } from '../services/database';
-import { redis, withIdempotency } from '../services/redis'; // import
+import { pool } from '../services/database.js';
+import { redis, withIdempotency } from '../services/redis.js'; // import
 
 interface PretiumWebhookPayload {
   transaction_code: string;

@@ -5,8 +5,8 @@
 // Design: Race condition safe, atomic updates, concurrency control
 // =====================================================
 
-import { pool } from './database';
-import { encrypt } from '../utils/crypto';
+import { pool } from './database.js';
+import { encrypt } from '../utils/crypto.js';
 
 export interface CreatePaymentRequestInput {
   recipientId: string;

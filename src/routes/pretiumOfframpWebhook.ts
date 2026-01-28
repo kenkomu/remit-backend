@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
-import { pool } from '../services/database';
-import { withIdempotency } from '../services/redis';
+import { pool } from '../services/database.js';
+import { withIdempotency } from '../services/redis.js';
 
 interface PretiumOfframpPayload {
   transaction_code: string;

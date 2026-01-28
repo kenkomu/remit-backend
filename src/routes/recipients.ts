@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { getDailySpendStatus } from '../services/dailySpendService';
+import { getDailySpendStatus } from '../services/dailySpendService.js';
 
 export async function recipientRoutes(fastify: FastifyInstance) {
   // Get daily spend status

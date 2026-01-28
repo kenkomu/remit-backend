@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from 'fastify';
-import { sendOTP, verifyOTP } from '../services/privy';
+import { sendOTP, verifyOTP } from '../services/privy.js';
 
 interface SendOtpBody {
   phone: string;

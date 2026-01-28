@@ -4,17 +4,17 @@ import cors from '@fastify/cors';
 
 import { authRoutes } from './routes/auth.js';
 import { escrowRoutes } from './routes/escrows.js';
-import { paymentRequestRoutes } from './routes/paymentRequests';
+import { paymentRequestRoutes } from './routes/paymentRequests.js';
 // import { paymentRoutes } from './routes/payments.js';
 import { recipientRoutes } from './routes/recipients.js';
 import { webhookRoutes } from './routes/webhooks.js';
 import { onrampRoutes } from './routes/onramp.js';
-import { pretiumWebhookRoutes } from './routes/pretiumWebhook';
+import { pretiumWebhookRoutes } from './routes/pretiumWebhook.js';
 import { offrampRoutes } from './routes/offramp.js';
 import { pretiumTransactionsRoutes } from './routes/pretiumTransactions.js';
 
 import { initPrivy } from './services/privy.js';
-import { scheduleDailySpendReset } from './jobs/resetDailySpend';
+import { scheduleDailySpendReset } from './jobs/resetDailySpend.js';
 
 export async function buildApp() {
   const fastify = Fastify({ logger: true });

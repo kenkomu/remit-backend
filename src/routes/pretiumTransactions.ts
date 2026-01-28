@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { getTransactions } from '../services/pretiumTransactions';
+import { getTransactions } from '../services/pretiumTransactions.js';
 
 function daysBetween(a: Date, b: Date) {
   return Math.floor((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));

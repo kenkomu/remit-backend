@@ -4,10 +4,10 @@
 // Purpose: Run daily at midnight to reset spend limits
 // =====================================================
 
-import { resetDailySpend } from '../services/dailySpendService';
-import { pool } from '../services/database';
+import { resetDailySpend } from '../services/dailySpendService.js';
+import { pool } from '../services/database.js';
 import cron from 'node-cron';
-import logger from '../utils/logger';
+import logger from '../utils/logger.js';
 
 /**
  * Reset daily spend limits at midnight UTC

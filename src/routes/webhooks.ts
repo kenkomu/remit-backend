@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
-import { completeMpesaPayment } from '../services/database';
-import { withIdempotency } from '../services/redis'; // import your wrapper
+import { completeMpesaPayment } from '../services/database.js';
+import { withIdempotency } from '../services/redis.js'; // import your wrapper
 
 export async function webhookRoutes(fastify: FastifyInstance) {
   // M-Pesa webhook with Redis idempotency

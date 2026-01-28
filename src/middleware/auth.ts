@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { findUserByPhone, createUser } from '../services/database';
+import { findUserByPhone, createUser } from '../services/database.js';
 
 declare module 'fastify' {
   interface FastifyRequest {

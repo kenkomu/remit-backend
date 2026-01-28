@@ -1,8 +1,8 @@
 import { Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import axios from 'axios';
-import { pool } from '../services/database';
-import { sendBaseUsdcTransaction } from '../services/onchainService';
+import { pool } from '../services/database.js';
+import { sendBaseUsdcTransaction } from '../services/onchainService.js';
 
 const redis = new IORedis(process.env.REDIS_URL || 'redis://127.0.0.1:6379');
 

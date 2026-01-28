@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
-import { pool } from '../services/database';
-import { initiateKesOnRamp, getExchangeRate } from '../services/pretium';
+import { pool } from '../services/database.js';
+import { initiateKesOnRamp, getExchangeRate } from '../services/pretium.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 

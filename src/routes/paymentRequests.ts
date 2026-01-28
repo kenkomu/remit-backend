@@ -1,9 +1,9 @@
 import { FastifyInstance } from 'fastify';
-import { pool } from '../services/database';
-import { createPaymentRequestWithDailyLimit } from '../services/dailySpendService';
-import { spendQueue } from '../queues/spendQueue';
+import { pool } from '../services/database.js';
+import { createPaymentRequestWithDailyLimit } from '../services/dailySpendService.js';
+import { spendQueue } from '../queues/spendQueue.js';
 import axios from 'axios';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware } from '../middleware/auth.js';
 
 const PRETIUM_BASE_URL = process.env.PRETIUM_BASE_URL!;
 

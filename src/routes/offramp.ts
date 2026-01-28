@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
-import { pool } from '../services/database';
-import { disburseKes } from '../services/pretiumDisburse';
+import { pool } from '../services/database.js';
+import { disburseKes } from '../services/pretiumDisburse.js';
 
 const PRETIUM_CALLBACK_URL = process.env.PRETIUM_OFFRAMP_CALLBACK_URL!;
 

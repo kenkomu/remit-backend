@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { createEscrow } from '../services/database';
+import { createEscrow } from '../services/database.js';
 import type { CreateEscrowRequest, CreateEscrowResponse, ErrorResponse } from '../types/index.js';
 import { pool } from '../services/database.js';
 import { authMiddleware } from '../middleware/auth.js'; // ✅ import middleware

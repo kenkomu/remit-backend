@@ -6,7 +6,7 @@
 // =====================================================
 
 import { Pool } from 'pg';
-import { encrypt, decrypt, hashForLookup } from '../utils/crypto';
+import { encrypt, decrypt, hashForLookup } from '../utils/crypto.js';
 
 export const pool = new Pool({
     host: process.env.DATABASE_HOST,
@@ -604,4 +604,4 @@ export async function closePool(): Promise<void> {
 
 export {
   getDailySpendStatus
-} from './dailySpendService';
+} from './dailySpendService.js';
