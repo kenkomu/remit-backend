@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "rm -rf dist && tsc && mkdir -p dist/blockchain && cp src/blockchain/*.json dist/blockchain/ && node scripts/verify-build.js",
-    "start": "node dist/server.js",
+    "start": "node start.js",
     "test": "vitest"
   },
   "keywords": [],
