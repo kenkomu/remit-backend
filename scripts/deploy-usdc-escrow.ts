@@ -13,29 +13,10 @@
  */
 
 import { ethers } from 'ethers';
-import fs from 'fs';
-import { pool } from '../src/services/database.js';
+import { getSimpleEscrowUSDCArtifact } from '../src/utils/contractUtils.js';
 
-const BASE_RPC_URL = process.env.BASE_RPC_URL;
-const PRIVATE_KEY = process.env.BASE_PRIVATE_KEY;
-const BASE_USDC_CONTRACT = process.env.BASE_USDC_CONTRACT || '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
-
-if (!BASE_RPC_URL || !PRIVATE_KEY) {
-  console.error('❌ Missing required environment variables: BASE_RPC_URL, BASE_PRIVATE_KEY');
-  process.exit(1);
-}
-
-// SimpleEscrowUSDC bytecode (compiled contract)
-// Note: In a real deployment, you would compile the contract using Hardhat or similar
-const SIMPLE_ESCROW_USDC_BYTECODE = `
-// Contract bytecode would go here
-// For now, this is a placeholder - you would need to compile the SimpleEscrowUSDC.sol contract
-// using a framework like Hardhat to get the actual bytecode
-`.trim();
-
-const SIMPLE_ESCROW_USDC_ABI = JSON.parse(
-  fs.readFileSync(new URL('../src/blockchain/SimpleEscrowUSDC.json', import.meta.url), 'utf-8')
-).abi;
+// Load contract artifact
+const { abi: SIMPLE_ESCROW_USDC_ABI, bytecode: SIMPLE_ESCROW_USDC_BYTECODE } = getSimpleEscrowUSDCArtifact();
 
 async function deployContract() {
   console.log('🚀 Starting SimpleEscrowUSDC deployment to Base network');

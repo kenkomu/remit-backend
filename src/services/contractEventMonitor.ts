@@ -1,13 +1,12 @@
 import { ethers } from 'ethers';
 import { pool } from './database.js';
-import fs from 'fs';
+import { getSimpleEscrowUSDCArtifact } from '../utils/contractUtils.js';
 
 const BASE_RPC_URL = process.env.BASE_RPC_URL!;
 const SIMPLE_ESCROW_ADDRESS = process.env.SIMPLE_ESCROW_ADDRESS!;
-const ESCROW_ARTIFACT_PATH = new URL('../blockchain/SimpleEscrowUSDC.json', import.meta.url);
-const SimpleEscrowUSDCAbi: { abi: any } = JSON.parse(
-  fs.readFileSync(ESCROW_ARTIFACT_PATH, 'utf-8')
-);
+
+// Load ABI using the robust contract utility
+const { abi: SimpleEscrowUSDCAbi } = getSimpleEscrowUSDCArtifact();
 
 interface ContractEvent {
   eventName: string;
@@ -28,7 +27,7 @@ export class ContractEventMonitor {
     this.provider = new ethers.JsonRpcProvider(BASE_RPC_URL);
     this.contract = new ethers.Contract(
       SIMPLE_ESCROW_ADDRESS,
-      SimpleEscrowUSDCAbi.abi,
+      SimpleEscrowUSDCAbi,
       this.provider
     );
   }

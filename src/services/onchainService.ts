@@ -1,11 +1,8 @@
 import { ethers } from 'ethers';
-import fs from 'fs';
+import { getSimpleEscrowAbi } from '../utils/contractUtils.js';
 
-// Load ABI at runtime to avoid JSON import issues in ESM
-const ESCROW_ARTIFACT_PATH = new URL('../blockchain/SimpleEscrow.json', import.meta.url);
-const SimpleEscrowAbi: { abi: any } = JSON.parse(
-  fs.readFileSync(ESCROW_ARTIFACT_PATH, 'utf-8')
-);
+// Load ABI using the robust contract utility
+const SimpleEscrowAbi = getSimpleEscrowAbi();
 
 const BASE_RPC_URL = process.env.BASE_RPC_URL!;
 const BASE_USDC_CONTRACT = process.env.BASE_USDC_CONTRACT!;
@@ -54,7 +51,7 @@ const usdcContract = new ethers.Contract(BASE_USDC_CONTRACT, erc20Abi, wallet);
 // SimpleEscrow Contract (ETH-based, using actual deployed contract)
 const escrowContract = new ethers.Contract(
   SIMPLE_ESCROW_ADDRESS,
-  SimpleEscrowAbi.abi,
+  SimpleEscrowAbi,
   wallet
 );
 
