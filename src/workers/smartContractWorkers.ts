@@ -329,12 +329,12 @@ export const contractDeploymentWorker = new Worker(
         `,
         [
           'SimpleEscrow',
-          deployment.address,
+          deployment.contractAddress,
           'base',
           job.data.deployerAddress,
-          deployment.txHash,
+          deployment.transactionHash,
           deployment.blockNumber,
-          gasEstimate.gasUnits,
+          gasEstimate.toString(),
           backendServiceAddress,
           feeCollectorAddress,
           100, // Default 1% fee
