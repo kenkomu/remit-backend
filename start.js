@@ -1,76 +1,51 @@
 #!/usr/bin/env node
 
-// Alternative start script for Render deployment
-import { resolve, join } from 'path';
-import { existsSync, readdirSync } from 'fs';
+// Debug script to find the actual server location
+import { resolve } from 'path';
+import { existsSync } from 'fs';
+import { execSync } from 'child_process';
 
-console.log(`🚀 Render Deployment Debug Information`);
-console.log(`Current working directory: ${process.cwd()}`);
-console.log(`Node.js version: ${process.version}`);
-console.log(`Platform: ${process.platform}`);
+console.log('🔍 DEBUGGING RENDER DIRECTORY STRUCTURE');
+console.log('Current working directory:', process.cwd());
 
-// Render is running from /opt/render/project/src, so we need to go up one level
-const projectRoot = resolve('..');
-const srcDir = resolve('.');
-
-console.log(`\n📁 Project root: ${projectRoot}`);
-console.log(`📁 Source directory: ${srcDir}`);
-
-// Try multiple possible locations for the server file
-const possiblePaths = [
-  resolve('./dist/server.js'),                    // ./dist/server.js (from src)
-  resolve('../dist/server.js'),                   // ../dist/server.js (from project root)
-  join(projectRoot, 'dist', 'server.js'),        // /opt/render/project/dist/server.js
-  join(srcDir, 'dist', 'server.js'),             // /opt/render/project/src/dist/server.js
-];
-
-console.log('\n📁 Checking possible server locations:');
-let serverPath = null;
-
-for (const path of possiblePaths) {
-  const exists = existsSync(path);
-  console.log(`${exists ? '✅' : '❌'} ${path}`);
-  if (exists && !serverPath) {
-    serverPath = path;
-  }
-}
-
-// List directory contents for debugging
-console.log('\n📁 Current directory (src) contents:');
 try {
-  console.log(readdirSync('.').join(', '));
-  
-  console.log('\n📁 Project root contents:');
-  console.log(readdirSync('..').join(', '));
-  
-  if (existsSync('./dist')) {
-    console.log('\n📁 ./dist/ (from src) contents:');
-    console.log(readdirSync('./dist').join(', '));
+  console.log('\n📁 Listing current directory:');
+  console.log(execSync('ls -la', { encoding: 'utf-8' }));
+
+  console.log('\n📁 Looking for dist directories:');
+  console.log(execSync('find . -name "dist" -type d 2>/dev/null || echo "No dist directories found"', { encoding: 'utf-8' }));
+
+  console.log('\n📁 Looking for server.js files:');
+  console.log(execSync('find . -name "server.js" -type f 2>/dev/null || echo "No server.js files found"', { encoding: 'utf-8' }));
+
+  console.log('\n📁 Check if build actually ran - looking for any .js files:');
+  console.log(execSync('find . -name "*.js" -not -path "./node_modules/*" 2>/dev/null || echo "No JS files found outside node_modules"', { encoding: 'utf-8' }));
+
+  console.log('\n🔧 Running build manually to see what happens:');
+  console.log(execSync('npm run build', { encoding: 'utf-8' }));
+
+  console.log('\n📁 After build - listing current directory again:');
+  console.log(execSync('ls -la', { encoding: 'utf-8' }));
+
+  console.log('\n📁 After build - looking for dist:');
+  console.log(execSync('find . -name "dist" -type d 2>/dev/null || echo "Still no dist found"', { encoding: 'utf-8' }));
+
+  console.log('\n📁 After build - looking for server.js:');
+  const serverFiles = execSync('find . -name "server.js" -type f 2>/dev/null || echo "No server.js found"', { encoding: 'utf-8' });
+  console.log(serverFiles);
+
+  // Try to find and run the server
+  const serverPath = serverFiles.split('\n').find(line => line.includes('server.js') && !line.includes('node_modules'));
+  if (serverPath && serverPath.trim()) {
+    console.log(`\n🚀 Found server at: ${serverPath.trim()}`);
+    console.log('Starting server...');
+    await import(resolve(serverPath.trim()));
+  } else {
+    console.error('❌ No server.js file found after build!');
+    process.exit(1);
   }
-  
-  if (existsSync('../dist')) {
-    console.log('\n📁 ../dist/ (from project root) contents:');
-    console.log(readdirSync('../dist').join(', '));
-  }
-  
+
 } catch (error) {
-  console.error('Error listing directory contents:', error);
-}
-
-if (!serverPath) {
-  console.error('\n❌ Server file not found in any expected location!');
-  console.error('This suggests the build process did not complete successfully.');
-  console.error('Expected locations checked:', possiblePaths);
-  process.exit(1);
-}
-
-console.log(`\n🎯 Using server file: ${serverPath}`);
-
-// Import and start the server
-try {
-  await import(serverPath);
-} catch (error) {
-  console.error('❌ Error starting server:', error);
-  console.error('Stack trace:', error.stack);
+  console.error('Error during debugging:', error.message);
   process.exit(1);
 }
