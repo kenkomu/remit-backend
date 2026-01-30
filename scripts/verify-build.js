@@ -5,9 +5,21 @@ import { resolve } from 'path';
 
 console.log('🔍 Verifying build output...');
 
-const serverPath = resolve('dist/server.js');
-const blockchainDir = resolve('dist/blockchain');
-const simpleEscrowPath = resolve('dist/blockchain/SimpleEscrow.json');
+// Check if we're running from src directory (Render) or project root (local)
+const isInSrc = process.cwd().endsWith('/src');
+const distPath = isInSrc ? resolve('../dist') : resolve('dist');
+const serverPath = resolve(distPath, 'server.js');
+const blockchainDir = resolve(distPath, 'blockchain');
+const simpleEscrowPath = resolve(blockchainDir, 'SimpleEscrow.json');
+
+console.log(`Working from: ${isInSrc ? 'src directory' : 'project root'}`);
+console.log(`Checking for dist directory: ${distPath}`);
+
+if (!existsSync(distPath)) {
+  console.error('❌ dist directory not found!');
+  process.exit(1);
+}
+console.log('✅ dist directory exists');
 
 console.log(`Checking for server file: ${serverPath}`);
 if (!existsSync(serverPath)) {
