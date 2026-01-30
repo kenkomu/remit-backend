@@ -3,6 +3,13 @@ import { createEscrow } from '../services/database.js';
 import type { CreateEscrowRequest, CreateEscrowResponse, ErrorResponse } from '../types/index.js';
 import { pool } from '../services/database.js';
 import { authMiddleware } from '../middleware/auth.js'; // ✅ import middleware
+import { Queue } from 'bullmq';
+import { getEscrowDetails } from '../services/onchainService.js';
+
+// Queue for blockchain operations
+const escrowQueue = new Queue('escrow-creation', { 
+  connection: { host: '127.0.0.1', port: 6379 } 
+});
 
 export async function escrowRoutes(fastify: FastifyInstance) {
   // Create escrow
@@ -71,6 +78,32 @@ export async function escrowRoutes(fastify: FastifyInstance) {
           totalAmountUsdCents,
           categories: dbCategories,
         });
+
+        // Queue blockchain escrow creation
+        try {
+          await escrowQueue.add(
+            'create-escrow',
+            {
+              escrowId,
+              purpose: categories[0]?.name || 'general',
+              durationDays: 90, // Default 90 days
+              amountUsdCents: totalAmountUsdCents,
+              requestedByUserId: senderUserId,
+            },
+            {
+              attempts: 3,
+              backoff: {
+                type: 'exponential',
+                delay: 2000,
+              },
+            }
+          );
+
+          console.log('🚀 Escrow queued for blockchain creation:', escrowId);
+        } catch (queueError) {
+          console.error('⚠️ Failed to queue escrow creation:', queueError);
+          // Continue anyway - escrow exists in database
+        }
 
         return reply.code(201).send({
           escrowId,

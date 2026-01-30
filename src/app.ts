@@ -12,6 +12,7 @@ import { onrampRoutes } from './routes/onramp.js';
 import { pretiumWebhookRoutes } from './routes/pretiumWebhook.js';
 import { offrampRoutes } from './routes/offramp.js';
 import { pretiumTransactionsRoutes } from './routes/pretiumTransactions.js';
+import { blockchainRoutes } from './routes/blockchain.js';
 
 import { initPrivy } from './services/privy.js';
 import { scheduleDailySpendReset } from './jobs/resetDailySpend.js';
@@ -39,6 +40,7 @@ export async function buildApp() {
   await fastify.register(pretiumWebhookRoutes, { prefix: '/webhooks/pretium' });
   await fastify.register(offrampRoutes, { prefix: '/offramp' });
   await fastify.register(pretiumTransactionsRoutes);
+  await fastify.register(blockchainRoutes, { prefix: '/blockchain' });
 
 
   // 🕛 Scheduled job

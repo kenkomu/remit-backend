@@ -1,11 +1,17 @@
 import { FastifyInstance } from 'fastify';
 import { pool } from '../services/database.js';
 import { createPaymentRequestWithDailyLimit } from '../services/dailySpendService.js';
-import { spendQueue } from '../queues/spendQueue.js';
+import { Queue } from 'bullmq';
 import axios from 'axios';
 import { authMiddleware } from '../middleware/auth.js';
+import { randomUUID } from 'crypto';
 
 const PRETIUM_BASE_URL = process.env.PRETIUM_BASE_URL!;
+
+// Queue for smart contract payment confirmations
+const paymentQueue = new Queue('payment-confirmation', { 
+  connection: { host: '127.0.0.1', port: 6379 } 
+});
 
 async function fetchOfframpStatus(
   transactionCode: string
@@ -70,19 +76,39 @@ export async function paymentRequestRoutes(fastify: FastifyInstance) {
         onchainStatus: 'pending',
       });
 
-      await spendQueue.add(
-        'send-usdc',
+      // Generate unique payment ID for smart contract
+      const paymentId = randomUUID();
+      
+      // Store payment ID in database
+      await pool.query(
+        'UPDATE payment_requests SET invoice_number = $1 WHERE payment_request_id = $2',
+        [paymentId, paymentRequest.paymentRequestId]
+      );
+
+      // Queue smart contract payment confirmation
+      await paymentQueue.add(
+        'confirm-payment',
         {
-          paymentRequestId: paymentRequest.paymentRequestId,
+          escrowId: body.escrowId,
+          paymentId,
           amountUsdCents: body.amountUsdCents,
-          userId: request.user!.userId,
+          mpesaRef: `MP-${Date.now()}`, // Will be updated with actual M-Pesa ref
+          paymentRequestId: paymentRequest.paymentRequestId,
         },
-        { jobId: paymentRequest.paymentRequestId }
+        { 
+          jobId: paymentRequest.paymentRequestId,
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 2000,
+          },
+        }
       );
 
       return reply.status(202).send({
         success: true,
         paymentRequestId: paymentRequest.paymentRequestId,
+        paymentId,
         status: 'onchain_pending',
       });
     }
@@ -156,7 +182,19 @@ export async function paymentRequestRoutes(fastify: FastifyInstance) {
         return row.status;
       })();
 
-      // 5️⃣ Return combined response
+      // 5️⃣ Add smart contract status
+      const { rows: escrowRows } = await pool.query(
+        `SELECT e.blockchain_contract_address 
+         FROM escrows e 
+         JOIN payment_requests pr ON pr.escrow_id = e.escrow_id 
+         WHERE pr.payment_request_id = $1 
+         LIMIT 1`,
+        [id]
+      );
+
+      const contractAddress = escrowRows[0]?.blockchain_contract_address;
+
+      // 6️⃣ Return combined response
       return reply.send({
         success: true,
         data: {
@@ -165,6 +203,8 @@ export async function paymentRequestRoutes(fastify: FastifyInstance) {
           onchain_status: row.onchain_status,
           transaction_hash: row.onchain_transaction_hash,
           offramp_status: offrampStatus,
+          contract_address: contractAddress,
+          smart_contract_enabled: !!contractAddress,
         },
       });
     }
