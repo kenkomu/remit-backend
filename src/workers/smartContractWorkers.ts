@@ -1,5 +1,4 @@
 import { Worker } from 'bullmq';
-import IORedis from 'ioredis';
 import axios from 'axios';
 import { ethers } from 'ethers';
 import { pool } from '../services/database.js';
@@ -12,22 +11,21 @@ import {
 } from '../services/onchainService.js';
 import ContractDeploymentService from '../services/contractDeploymentService.js';
 
-// Only create Redis connection if REDIS_URL is provided
-const redis = process.env.REDIS_URL ? new IORedis(process.env.REDIS_URL) : null;
 const SIMPLE_ESCROW_ADDRESS = process.env.SIMPLE_ESCROW_ADDRESS!;
 const PRETIUM_BASE_URL = process.env.PRETIUM_API_URL!;
 const PRETIUM_API_KEY = process.env.PRETIUM_API_KEY!;
+const REDIS_URL = process.env.REDIS_URL;
 
 // =====================================================
 // WORKER: Create Blockchain Escrow
 // =====================================================
 
-export const escrowCreationWorker = new Worker(
+export const escrowCreationWorker = REDIS_URL ? new Worker(
   'escrow-creation',
   async job => {
     console.log('🔨 Creating blockchain escrow', job.id, job.data);
 
-    const { escrowId, purpose, durationDays } = job.data;
+     const { escrowId, purpose, durationDays } = job.data;
 
     try {
       // Check if escrow already exists on blockchain
@@ -110,17 +108,17 @@ export const escrowCreationWorker = new Worker(
       throw err;
     }
   },
-  {
-    connection: { host: '127.0.0.1', port: 6379 },
+  REDIS_URL ? {
+    connection: { url: REDIS_URL },
     concurrency: 3, // Allow concurrent escrow creation
-  }
-);
+  } : undefined
+) : null;
 
 // =====================================================
 // WORKER: Confirm Payment on Blockchain
 // =====================================================
 
-export const paymentConfirmationWorker = new Worker(
+export const paymentConfirmationWorker = REDIS_URL ? new Worker(
   'payment-confirmation',
   async job => {
     console.log('💳 Confirming payment on blockchain', job.id, job.data);
@@ -205,20 +203,20 @@ export const paymentConfirmationWorker = new Worker(
         [paymentRequestId]
       );
 
-      throw err;
-    }
-  },
-  {
-    connection: { host: '127.0.0.1', port: 6379 },
+       throw err;
+     }
+   },
+  REDIS_URL ? {
+    connection: { url: REDIS_URL },
     concurrency: 5, // Higher concurrency for payments
-  }
-);
+  } : undefined
+) : null;
 
 // =====================================================
 // WORKER: Refund Expired Escrow
 // =====================================================
 
-export const escrowRefundWorker = new Worker(
+export const escrowRefundWorker = REDIS_URL ? new Worker(
   'escrow-refund',
   async job => {
     console.log('🔄 Refunding escrow', job.id, job.data);
@@ -283,17 +281,17 @@ export const escrowRefundWorker = new Worker(
       throw err;
     }
   },
-  {
-    connection: { host: '127.0.0.1', port: 6379 },
+  REDIS_URL ? {
+    connection: { url: REDIS_URL },
     concurrency: 2,
-  }
-);
+  } : undefined
+) : null;
 
 // =====================================================
 // WORKER: Contract Deployment (Admin)
 // =====================================================
 
-export const contractDeploymentWorker = new Worker(
+export const contractDeploymentWorker = REDIS_URL ? new Worker(
   'contract-deployment',
   async job => {
     console.log('🚀 Deploying new contract', job.id, job.data);
@@ -345,49 +343,57 @@ export const contractDeploymentWorker = new Worker(
       console.log('📝 Deployment tracked in database');
 
       return deployment;
-    } catch (err: any) {
-      console.error('❌ Contract deployment error', err.message);
-      throw err;
-    }
-  },
-  {
-    connection: { host: '127.0.0.1', port: 6379 },
+     } catch (err: any) {
+       console.error('❌ Contract deployment error', err.message);
+       throw err;
+     }
+   },
+  REDIS_URL ? {
+    connection: { url: REDIS_URL },
     concurrency: 1, // One deployment at a time
-  }
-);
+  } : undefined
+) : null;
 
 // =====================================================
 // WORKER EVENT HANDLERS
 // =====================================================
 
-escrowCreationWorker.on('ready', () => {
-  console.log('Escrow creation worker ready');
-});
+if (escrowCreationWorker) {
+  escrowCreationWorker.on('ready', () => {
+    console.log('Escrow creation worker ready');
+  });
 
-escrowCreationWorker.on('failed', (job, err) => {
-  console.error('Escrow creation failed', job?.id, err.message);
-});
+  escrowCreationWorker.on('failed', (job: any, err: any) => {
+    console.error('Escrow creation failed', job?.id, err.message);
+  });
+}
 
-paymentConfirmationWorker.on('ready', () => {
-  console.log('Payment confirmation worker ready');
-});
+if (paymentConfirmationWorker) {
+  paymentConfirmationWorker.on('ready', () => {
+    console.log('Payment confirmation worker ready');
+  });
 
-paymentConfirmationWorker.on('failed', (job, err) => {
-  console.error('Payment confirmation failed', job?.id, err.message);
-});
+  paymentConfirmationWorker.on('failed', (job: any, err: any) => {
+    console.error('Payment confirmation failed', job?.id, err.message);
+  });
+}
 
-escrowRefundWorker.on('ready', () => {
-  console.log('Escrow refund worker ready');
-});
+if (escrowRefundWorker) {
+  escrowRefundWorker.on('ready', () => {
+    console.log('Escrow refund worker ready');
+  });
 
-escrowRefundWorker.on('failed', (job, err) => {
-  console.error('Escrow refund failed', job?.id, err.message);
-});
+  escrowRefundWorker.on('failed', (job: any, err: any) => {
+    console.error('Escrow refund failed', job?.id, err.message);
+  });
+}
 
-contractDeploymentWorker.on('ready', () => {
-  console.log('Contract deployment worker ready');
-});
+if (contractDeploymentWorker) {
+  contractDeploymentWorker.on('ready', () => {
+    console.log('Contract deployment worker ready');
+  });
 
-contractDeploymentWorker.on('failed', (job, err) => {
-  console.error('Contract deployment failed', job?.id, err.message);
-});
+  contractDeploymentWorker.on('failed', (job: any, err: any) => {
+    console.error('Contract deployment failed', job?.id, err.message);
+  });
+}

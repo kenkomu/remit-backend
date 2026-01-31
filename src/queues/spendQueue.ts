@@ -1,10 +1,7 @@
 import { Queue } from 'bullmq';
-import IORedis from 'ioredis';
 
-// Only create Redis connection if REDIS_URL is provided
-const redis = process.env.REDIS_URL ? new IORedis(process.env.REDIS_URL) : null;
-
-export const spendQueue = redis ? new Queue('usdc-spend', {
-  connection: redis,
+// Only create queue if REDIS_URL is provided
+export const spendQueue = process.env.REDIS_URL ? new Queue('usdc-spend', {
+  connection: { url: process.env.REDIS_URL },
 }) : null;
 
