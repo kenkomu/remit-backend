@@ -1,0 +1,428 @@
+{
+  "info": {
+    "name": "Remit Backend API",
+    "description": "Complete API collection for Remit Backend - Cross-border remittance with invoice-locked spending controls",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/health",
+              "host": ["{{BASE_URL}}"],
+              "path": ["health"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Send OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"phone\": \"+254700000000\"}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/auth/send-otp",
+              "host": ["{{BASE_URL}}"],
+              "path": ["auth", "send-otp"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"phone\": \"+254700000000\", \"otp\": \"123456\"}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/auth/verify-otp",
+              "host": ["{{BASE_URL}}"],
+              "path": ["auth", "verify-otp"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Escrows",
+      "item": [
+        {
+          "name": "Create Escrow",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"recipientPhone\": \"+254700000001\", \"totalAmountUsd\": 1000, \"categories\": [{\"name\": \"School Fees\", \"amountUsd\": 500}, {\"name\": \"Medical\", \"amountUsd\": 300}, {\"name\": \"Groceries\", \"amountUsd\": 200}]}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/escrows/",
+              "host": ["{{BASE_URL}}"],
+              "path": ["escrows", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Escrow Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/escrows/{{ESCROW_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["escrows", "{{ESCROW_ID}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Payment Requests",
+      "item": [
+        {
+          "name": "Create Payment Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"escrowId\": \"{{ESCROW_ID}}\", \"categoryId\": \"school-fees\", \"amountKesCents\": 6487000, \"amountUsdCents\": 50000, \"exchangeRate\": 129.74, \"merchantName\": \"ABC School\", \"merchantAccount\": \"school@abc.ac.ke\"}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/payment-requests",
+              "host": ["{{BASE_URL}}"],
+              "path": ["payment-requests"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Payment Request Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/payment-requests/{{PAYMENT_REQUEST_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["payment-requests", "{{PAYMENT_REQUEST_ID}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Recipients",
+      "item": [
+        {
+          "name": "Get Daily Spend Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/recipients/{{RECIPIENT_ID}}/daily-spend",
+              "host": ["{{BASE_URL}}"],
+              "path": ["recipients", "{{RECIPIENT_ID}}", "daily-spend"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "On-Ramp (Fund Escrow)",
+      "item": [
+        {
+          "name": "Initiate KES On-Ramp",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"phone_number\": \"0700000000\", \"escrow_id\": \"{{ESCROW_ID}}\"}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/onramp/kes",
+              "host": ["{{BASE_URL}}"],
+              "path": ["onramp", "kes"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Off-Ramp (Disburse Payment)",
+      "item": [
+        {
+          "name": "Initiate KES Off-Ramp",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"paymentRequestId\": \"{{PAYMENT_REQUEST_ID}}\", \"phoneNumber\": \"+254700000001\", \"amountKes\": 6487000, \"transactionHash\": \"0x1234567890abcdef...\"}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/offramp/pay",
+              "host": ["{{BASE_URL}}"],
+              "path": ["offramp", "pay"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Blockchain",
+      "item": [
+        {
+          "name": "Get Contract Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/blockchain/status",
+              "host": ["{{BASE_URL}}"],
+              "path": ["blockchain", "status"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Escrow Blockchain Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/blockchain/escrow/{{ESCROW_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["blockchain", "escrow", "{{ESCROW_ID}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify Payment ID",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"paymentId\": \"{{PAYMENT_ID}}\"}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/blockchain/verify-payment",
+              "host": ["{{BASE_URL}}"],
+              "path": ["blockchain", "verify-payment"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Refund Escrow",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"reason\": \"Changed plans\"}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/blockchain/escrow/{{ESCROW_ID}}/refund",
+              "host": ["{{BASE_URL}}"],
+              "path": ["blockchain", "escrow", "{{ESCROW_ID}}", "refund"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Contract Events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/blockchain/events?eventName=PaymentReleased&limit=50&offset=0",
+              "host": ["{{BASE_URL}}"],
+              "path": ["blockchain", "events"],
+              "query": [
+                {
+                  "key": "eventName",
+                  "value": "PaymentReleased"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Transaction History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/blockchain/transactions/{{ESCROW_ID}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["blockchain", "transactions", "{{ESCROW_ID}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Pretium Transactions",
+      "item": [
+        {
+          "name": "Get Transactions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/transactions?currency=KES&start_date=2024-01-29&end_date=2024-01-31",
+              "host": ["{{BASE_URL}}"],
+              "path": ["transactions"],
+              "query": [
+                {
+                  "key": "currency",
+                  "value": "KES"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2024-01-29"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2024-01-31"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "https://remit-backend-yblg.onrender.com",
+      "type": "string"
+    },
+    {
+      "key": "TOKEN",
+      "value": "mock-jwt-token",
+      "type": "string"
+    },
+    {
+      "key": "ESCROW_ID",
+      "value": "550e8400-e29b-41d4-a716-446655440000",
+      "type": "string"
+    },
+    {
+      "key": "PAYMENT_REQUEST_ID",
+      "value": "770e8400-e29b-41d4-a716-446655440111",
+      "type": "string"
+    },
+    {
+      "key": "PAYMENT_ID",
+      "value": "880e8400-e29b-41d4-a716-446655440222",
+      "type": "string"
+    },
+    {
+      "key": "RECIPIENT_ID",
+      "value": "550e8400-e29b-41d4-a716-446655440001",
+      "type": "string"
+    }
+  ]
+}
