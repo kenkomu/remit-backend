@@ -18,6 +18,7 @@ export const pool = new Pool({
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 2000,
     connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
 });
 
 // =====================================================
