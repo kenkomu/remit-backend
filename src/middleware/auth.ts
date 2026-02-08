@@ -33,7 +33,7 @@ export async function authMiddleware(
    * In Phase 1, token → phone mapping is mocked.
    * In Phase 2, this comes from Privy JWT claims.
    */
-  const verifiedPhone = '+254700000000';
+  const verifiedPhone = '+254112285105';
 
   // Resolve user
   let user = await findUserByPhone(verifiedPhone);
