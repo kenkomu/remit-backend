@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { pool } from '../services/database.js';
 import { withIdempotency } from '../services/redis.js';
-import { hashForLookup } from '../utils/crypto.js';
+import { encrypt, hashForLookup } from '../utils/crypto.js';
 
 interface PretiumWebhookPayload {
   transaction_code: string;
@@ -55,17 +55,53 @@ export async function pretiumWebhookRoutes(fastify: FastifyInstance) {
           }
 
           // Create escrow now (single transaction)
-          const recipientHash = hashForLookup(String(intent.recipient_phone));
+          const recipientPhone = String(intent.recipient_phone);
+          const recipientHash = hashForLookup(recipientPhone);
           const recipientRes = await client.query(
-            `SELECT recipient_id
+            `SELECT recipient_id, phone_number_hash, phone_number_encrypted, full_name_encrypted
              FROM recipients
-             WHERE created_by_user_id = $1 AND phone_number_hash = $2
+             WHERE created_by_user_id = $1
+               AND (
+                 phone_number_hash = $2 OR
+                 phone_number_hash = md5($3) OR
+                 phone_number_encrypted = $3
+               )
+             ORDER BY
+               CASE WHEN phone_number_hash = $2 THEN 2 ELSE 0 END DESC,
+               CASE WHEN phone_number_hash = md5($3) THEN 1 ELSE 0 END DESC
              LIMIT 1`,
-            [intent.sender_user_id, recipientHash],
+            [intent.sender_user_id, recipientHash, recipientPhone],
           );
 
           if (!recipientRes.rows.length) {
             throw new Error('Recipient not found for funding intent');
+          }
+
+          // Migrate any legacy recipient rows so future lookups work via SHA-256 hash.
+          {
+            const row = recipientRes.rows[0];
+            const phoneEnc = String(row.phone_number_encrypted ?? '');
+            const nameEnc = String(row.full_name_encrypted ?? '');
+            const needsPhoneEncFix = phoneEnc !== '' && !phoneEnc.includes(':');
+            const needsNameEncFix = nameEnc !== '' && !nameEnc.includes(':');
+            const needsHashFix = String(row.phone_number_hash ?? '') !== recipientHash;
+
+            if (needsPhoneEncFix || needsNameEncFix || needsHashFix) {
+              await client.query(
+                `UPDATE recipients
+                 SET phone_number_hash = $1,
+                     phone_number_encrypted = $2,
+                     full_name_encrypted = $3,
+                     updated_at = NOW()
+                 WHERE recipient_id = $4`,
+                [
+                  recipientHash,
+                  needsPhoneEncFix ? encrypt(recipientPhone) : phoneEnc,
+                  needsNameEncFix ? encrypt(nameEnc || 'Unknown') : nameEnc,
+                  row.recipient_id,
+                ],
+              );
+            }
           }
 
           const escrowRes = await client.query(

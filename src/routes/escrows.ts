@@ -5,6 +5,7 @@ import { pool } from '../services/database.js';
 import { authMiddleware } from '../middleware/auth.js'; // ✅ import middleware
 import { Queue } from 'bullmq';
 import { getEscrowDetails } from '../services/onchainService.js';
+import { encrypt, hashForLookup } from '../utils/crypto.js';
 
 // Queue for blockchain operations (only if Redis is available)
 let escrowQueue: Queue | null = null;
@@ -41,36 +42,69 @@ export async function escrowRoutes(fastify: FastifyInstance) {
         });
       }
 
-      try {
-        // 🔑 Lookup or create recipient
-        let recipientId: string;
+        try {
+          // 🔑 Lookup or create recipient
+          let recipientId: string;
 
-        const existing = await pool.query(
-          `SELECT recipient_id FROM recipients WHERE phone_number_encrypted = $1`,
-          [recipientPhone]
-        );
-
-        if (existing.rows.length > 0) {
-          recipientId = existing.rows[0].recipient_id;
-        } else {
-          const insertResult = await pool.query(
-            `INSERT INTO recipients (
-              created_by_user_id,
-              phone_number_encrypted,
-              phone_number_hash,
-              country_code,
-              is_verified,
-              full_name_encrypted,
-              created_at,
-              updated_at
-            )
-            VALUES ($1, $2, md5($2), 'KE', false, 'Unknown', NOW(), NOW())
-            RETURNING recipient_id`,
-            [senderUserId, recipientPhone]
+          const recipientHash = hashForLookup(recipientPhone);
+          const existing = await pool.query(
+            `SELECT recipient_id, phone_number_hash, phone_number_encrypted, full_name_encrypted
+             FROM recipients
+             WHERE created_by_user_id = $1
+               AND (
+                 phone_number_hash = $2 OR
+                 phone_number_hash = md5($3) OR
+                 phone_number_encrypted = $3
+               )
+             ORDER BY
+               CASE WHEN phone_number_hash = $2 THEN 2 ELSE 0 END DESC,
+               CASE WHEN phone_number_hash = md5($3) THEN 1 ELSE 0 END DESC
+             LIMIT 1`,
+            [senderUserId, recipientHash, recipientPhone],
           );
 
-          recipientId = insertResult.rows[0].recipient_id;
-        }
+          if (existing.rows.length > 0) {
+            const row = existing.rows[0];
+            recipientId = row.recipient_id;
+
+            // Migrate legacy recipient rows created before hashing/encryption were standardized.
+            const phoneEnc = String(row.phone_number_encrypted ?? '');
+            const nameEnc = String(row.full_name_encrypted ?? '');
+            const needsPhoneEncFix = phoneEnc !== '' && !phoneEnc.includes(':');
+            const needsNameEncFix = nameEnc !== '' && !nameEnc.includes(':');
+            const needsHashFix = String(row.phone_number_hash ?? '') !== recipientHash;
+
+            if (needsPhoneEncFix || needsNameEncFix || needsHashFix) {
+              await pool.query(
+                `UPDATE recipients
+                 SET phone_number_hash = $1,
+                     phone_number_encrypted = $2,
+                     full_name_encrypted = $3,
+                     updated_at = NOW()
+                 WHERE recipient_id = $4`,
+                [
+                  recipientHash,
+                  needsPhoneEncFix ? encrypt(recipientPhone) : phoneEnc,
+                  needsNameEncFix ? encrypt(nameEnc || 'Unknown') : nameEnc,
+                  recipientId,
+                ],
+              );
+            }
+          } else {
+            const insertResult = await pool.query(
+              `INSERT INTO recipients (
+                 created_by_user_id,
+                 phone_number_encrypted,
+                 phone_number_hash,
+                 full_name_encrypted,
+                 country_code
+               )
+               VALUES ($1,$2,$3,$4,'KE')
+               RETURNING recipient_id`,
+              [senderUserId, encrypt(recipientPhone), recipientHash, encrypt('Unknown')],
+            );
+            recipientId = insertResult.rows[0].recipient_id;
+          }
 
         const totalAmountUsdCents = Math.round(totalAmountUsd * 100);
 
