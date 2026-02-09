@@ -755,8 +755,7 @@ export async function getRecipientDashboard(recipientId: string): Promise<{
             sc.category_id,
             sc.allocated_amount_usd_cents,
             sc.spent_amount_usd_cents,
-            sc.remaining_amount_usd_cents,
-            sc.daily_limit_usd_cents
+            sc.remaining_amount_usd_cents
          FROM spending_categories sc
          JOIN escrows e ON sc.escrow_id = e.escrow_id
          WHERE e.recipient_id = $1 AND e.status = 'active' AND sc.remaining_amount_usd_cents > 0
@@ -771,7 +770,7 @@ export async function getRecipientDashboard(recipientId: string): Promise<{
         allocatedUsd: Number(row.allocated_amount_usd_cents) / 100,
         spentUsd: Number(row.spent_amount_usd_cents) / 100,
         remainingUsd: Number(row.remaining_amount_usd_cents) / 100,
-        dailyLimitUsd: row.daily_limit_usd_cents ? Number(row.daily_limit_usd_cents) / 100 : null,
+        dailyLimitUsd: dailySpend.limitUsd, // Use global daily limit from daily_spend table
         escrowCount: 1
     }));
 
