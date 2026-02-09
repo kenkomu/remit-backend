@@ -1,9 +1,40 @@
 import { FastifyInstance } from 'fastify';
 import { getDailySpendStatus } from '../services/dailySpendService.js';
-import { findRecipientByPhone, getRecipientDashboard } from '../services/database.js';
+import { claimRecipientForUser, findRecipientByUserId, getRecipientDashboard } from '../services/database.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 export async function recipientRoutes(fastify: FastifyInstance) {
+  // ─────────────────────────────────────────────────────────────────────────
+  // POST /recipients/me/claim
+  // ─────────────────────────────────────────────────────────────────────────
+  // Option B: One-time claim flow. Recipient proves they own a phone number
+  // (via OTP) and we link the matching recipients row to the authenticated user.
+  //
+  // Phase 1 note: OTP is mocked; auth token encodes phone.
+  // ─────────────────────────────────────────────────────────────────────────
+  fastify.post(
+    '/me/claim',
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const userId = request.user?.userId;
+      if (!userId) {
+        return reply.code(401).send({ error: 'Unauthorized' });
+      }
+
+      const recipientPhone = (request as any).recipientPhone;
+      if (typeof recipientPhone !== 'string' || !recipientPhone.startsWith('+254')) {
+        return reply.code(400).send({ error: 'Missing verified recipient phone' });
+      }
+
+      const claimed = await claimRecipientForUser({ userId, phone: recipientPhone });
+      if (!claimed) {
+        return reply.code(404).send({ error: 'Recipient not found' });
+      }
+
+      return reply.send({ success: true, recipientId: claimed.recipientId });
+    },
+  );
+
   // ─────────────────────────────────────────────────────────────────────────
   // GET /recipients/me/dashboard
   // ─────────────────────────────────────────────────────────────────────────
@@ -16,12 +47,24 @@ export async function recipientRoutes(fastify: FastifyInstance) {
     { preHandler: authMiddleware },
     async (request, reply) => {
       try {
-        // Phase 1: Get recipient phone from request context
-        // In Phase 2, this will come from JWT claims
-        const recipientPhone = (request as any).recipientPhone || '+254700000000';
+        const userId = request.user?.userId;
+        if (!userId) {
+          return reply.code(401).send({ error: 'Unauthorized' });
+        }
 
-        // Find recipient by phone
-        const recipient = await findRecipientByPhone(recipientPhone);
+        // Option B: direct lookup by linked user_id.
+        let recipient = await findRecipientByUserId(userId);
+
+        // Back-compat / Phase 1: if not linked yet, attempt one-time claim using verified phone.
+        if (!recipient) {
+          const recipientPhone = (request as any).recipientPhone;
+          if (typeof recipientPhone === 'string' && recipientPhone.startsWith('+254')) {
+            const claimed = await claimRecipientForUser({ userId, phone: recipientPhone });
+            if (claimed) {
+              recipient = await findRecipientByUserId(userId);
+            }
+          }
+        }
 
         if (!recipient) {
           return reply.code(404).send({

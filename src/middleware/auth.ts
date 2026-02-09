@@ -24,7 +24,7 @@ export async function authMiddleware(
   const token = authHeader.replace('Bearer ', '');
 
   // PHASE 1: mock token validation
-  if (token !== 'mock-jwt-token') {
+  if (token !== 'mock-jwt-token' && !token.startsWith('mock-jwt-token:')) {
     return reply.code(401).send({ error: 'Invalid token' });
   }
 
@@ -33,7 +33,13 @@ export async function authMiddleware(
    * In Phase 1, token → phone mapping is mocked.
    * In Phase 2, this comes from Privy JWT claims.
    */
-  const verifiedPhone = '+254112285105';
+  const verifiedPhone = (() => {
+    if (token.startsWith('mock-jwt-token:')) {
+      const candidate = token.slice('mock-jwt-token:'.length);
+      if (/^\+254\d{9}$/.test(candidate)) return candidate;
+    }
+    return '+254112285105';
+  })();
 
   // Resolve user
   let user = await findUserByPhone(verifiedPhone);

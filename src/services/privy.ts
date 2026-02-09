@@ -29,7 +29,7 @@ export async function verifyOTP(
   console.log(`[MOCK] Verifying OTP for ${phone}: ${otp}`);
 
   return {
-    token: 'mock-jwt-token',
+    token: `mock-jwt-token:${phone}`,
     phone
   };
 }

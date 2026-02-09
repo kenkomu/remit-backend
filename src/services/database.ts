@@ -584,6 +584,99 @@ export async function findRecipientByPhone(phone: string): Promise<any | null> {
     };
 }
 
+/** Find recipient by linked user_id (Option B). */
+export async function findRecipientByUserId(userId: string): Promise<any | null> {
+    const result = await pool.query(
+        `SELECT
+            r.recipient_id,
+            r.created_by_user_id,
+            r.phone_number_encrypted,
+            r.full_name_encrypted,
+            r.is_verified,
+            r.country_code
+         FROM recipients r
+         WHERE r.user_id = $1
+         LIMIT 1`,
+        [userId],
+    );
+
+    if (result.rows.length === 0) {
+        return null;
+    }
+
+    const row = result.rows[0];
+    return {
+        recipientId: row.recipient_id,
+        createdByUserId: row.created_by_user_id,
+        phone: decrypt(row.phone_number_encrypted),
+        fullName: decrypt(row.full_name_encrypted),
+        isVerified: row.is_verified,
+        countryCode: row.country_code,
+    };
+}
+
+/**
+ * Link a recipient record to the recipient's own user account.
+ * One-time claim: match by phone_hash, then set user_id.
+ */
+export async function claimRecipientForUser(params: {
+    userId: string;
+    phone: string;
+}): Promise<{ recipientId: string } | null> {
+    const phoneHash = hashForLookup(params.phone);
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        // If already claimed, return it.
+        const existing = await client.query(
+            `SELECT recipient_id
+             FROM recipients
+             WHERE user_id = $1
+             FOR UPDATE`,
+            [params.userId],
+        );
+        if (existing.rows.length) {
+            await client.query('COMMIT');
+            return { recipientId: existing.rows[0].recipient_id };
+        }
+
+        // Find the matching recipient by phone (unclaimed or already linked elsewhere).
+        const match = await client.query(
+            `SELECT recipient_id, user_id
+             FROM recipients
+             WHERE phone_number_hash = $1
+             FOR UPDATE`,
+            [phoneHash],
+        );
+
+        if (!match.rows.length) {
+            await client.query('ROLLBACK');
+            return null;
+        }
+
+        if (match.rows[0].user_id && match.rows[0].user_id !== params.userId) {
+            throw new Error('Recipient already claimed by another user');
+        }
+
+        await client.query(
+            `UPDATE recipients
+             SET user_id = $1, updated_at = NOW()
+             WHERE recipient_id = $2`,
+            [params.userId, match.rows[0].recipient_id],
+        );
+
+        await client.query('COMMIT');
+        return { recipientId: match.rows[0].recipient_id };
+    } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+    } finally {
+        client.release();
+    }
+}
+
 /**
  * Get recipient dashboard data (aggregated across all active escrows)
  * Production-ready: single query for efficiency, handles edge cases
