@@ -12,6 +12,7 @@ export interface CreatePaymentRequestInput {
   recipientId: string;
   escrowId: string;
   categoryId: string;
+  categoryName?: string; // Category name to check for one-time payments
   amountKesCents: number;
   amountUsdCents: number;
   exchangeRate: number;
@@ -20,6 +21,9 @@ export interface CreatePaymentRequestInput {
   invoiceUrl?: string;
   invoiceHash?: string;
 }
+
+// Categories that bypass daily spending limits (one-time payments)
+const ONE_TIME_CATEGORIES = new Set(['rent', 'school', 'school fees', 'education']);
 
 export interface DailySpendStatus {
   dailyLimitCents: number;
@@ -32,11 +36,17 @@ export interface DailySpendStatus {
 /**
  * Create payment request with ENFORCED daily spend limit
  * Race condition safe, prevents double-spend, atomic
+ * 
+ * One-time payment categories (rent, school) bypass daily limits
  */
 export async function createPaymentRequestWithDailyLimit(
   input: CreatePaymentRequestInput
 ): Promise<{ paymentRequestId: string; remainingDailyLimitCents: number }> {
   const client = await pool.connect();
+
+  // Check if this is a one-time payment category that bypasses daily limits
+  const categoryName = (input.categoryName || '').toLowerCase();
+  const isOneTimePayment = ONE_TIME_CATEGORIES.has(categoryName);
 
   try {
     // ✅ START TRANSACTION
@@ -58,22 +68,36 @@ export async function createPaymentRequestWithDailyLimit(
       [input.recipientId]
     );
 
-    // 2. Lock daily spend row
-    const dailySpendResult = await client.query(
-      `SELECT remaining_today_usd_cents
-       FROM daily_spend
-       WHERE recipient_id = $1
-         AND spend_date = CURRENT_DATE
-       FOR UPDATE`,
-      [input.recipientId]
-    );
+    let remainingDaily = 0;
 
-    const remainingDaily = Number(
-      dailySpendResult.rows[0].remaining_today_usd_cents
-    );
+    // 2. Lock daily spend row and check limit (skip for one-time payments)
+    if (!isOneTimePayment) {
+      const dailySpendResult = await client.query(
+        `SELECT remaining_today_usd_cents
+         FROM daily_spend
+         WHERE recipient_id = $1
+           AND spend_date = CURRENT_DATE
+         FOR UPDATE`,
+        [input.recipientId]
+      );
 
-    if (remainingDaily < input.amountUsdCents) {
-      throw new Error('Daily limit exceeded');
+      remainingDaily = Number(
+        dailySpendResult.rows[0].remaining_today_usd_cents
+      );
+
+      if (remainingDaily < input.amountUsdCents) {
+        throw new Error('Daily limit exceeded');
+      }
+    } else {
+      // For one-time payments, still lock the row but don't check the limit
+      await client.query(
+        `SELECT remaining_today_usd_cents
+         FROM daily_spend
+         WHERE recipient_id = $1
+           AND spend_date = CURRENT_DATE
+         FOR UPDATE`,
+        [input.recipientId]
+      );
     }
 
     // 3. Lock escrow
@@ -123,23 +147,44 @@ export async function createPaymentRequestWithDailyLimit(
 
     const paymentRequestId = paymentResult.rows[0].payment_request_id;
 
-    // 6. Atomic spend update
-    const updateResult = await client.query(
-      `UPDATE daily_spend
-       SET
-         spent_today_usd_cents = spent_today_usd_cents + $1,
-         remaining_today_usd_cents = remaining_today_usd_cents - $1,
-         transaction_count = transaction_count + 1,
-         last_transaction_at = NOW()
-       WHERE recipient_id = $2
-         AND spend_date = CURRENT_DATE
-         AND remaining_today_usd_cents >= $1
-       RETURNING remaining_today_usd_cents`,
-      [input.amountUsdCents, input.recipientId]
-    );
+    // 6. Atomic spend update (only deduct from daily limit if NOT a one-time payment)
+    let finalRemainingDaily = 0;
+    
+    if (!isOneTimePayment) {
+      // Regular categories: deduct from daily limit
+      const updateResult = await client.query(
+        `UPDATE daily_spend
+         SET
+           spent_today_usd_cents = spent_today_usd_cents + $1,
+           remaining_today_usd_cents = remaining_today_usd_cents - $1,
+           transaction_count = transaction_count + 1,
+           last_transaction_at = NOW()
+         WHERE recipient_id = $2
+           AND spend_date = CURRENT_DATE
+           AND remaining_today_usd_cents >= $1
+         RETURNING remaining_today_usd_cents`,
+        [input.amountUsdCents, input.recipientId]
+      );
 
-    if (updateResult.rowCount === 0) {
-      throw new Error('Concurrent daily limit exhaustion');
+      if (updateResult.rowCount === 0) {
+        throw new Error('Concurrent daily limit exhaustion');
+      }
+
+      finalRemainingDaily = Number(updateResult.rows[0].remaining_today_usd_cents);
+    } else {
+      // One-time payment categories: don't deduct from daily limit, just update transaction count
+      const updateResult = await client.query(
+        `UPDATE daily_spend
+         SET
+           transaction_count = transaction_count + 1,
+           last_transaction_at = NOW()
+         WHERE recipient_id = $1
+           AND spend_date = CURRENT_DATE
+         RETURNING remaining_today_usd_cents`,
+        [input.recipientId]
+      );
+
+      finalRemainingDaily = Number(updateResult.rows[0].remaining_today_usd_cents);
     }
 
     // ✅ COMMIT AT END
@@ -147,9 +192,7 @@ export async function createPaymentRequestWithDailyLimit(
 
     return {
       paymentRequestId,
-      remainingDailyLimitCents: Number(
-        updateResult.rows[0].remaining_today_usd_cents
-      )
+      remainingDailyLimitCents: finalRemainingDaily
     };
 
   } catch (err) {
